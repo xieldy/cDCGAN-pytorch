@@ -29,8 +29,8 @@ class CDCGAN:
         data_loader_itr = iter(train_loader)
         for _ in tqdm.trange(num_of_batch, desc=desc, total=num_of_batch):
             batch_img, batch_label = next(data_loader_itr)
-            real_img = batch_img.unsqueeze(1).to(device)
-            one_hot_label = torch.nn.functional.one_hot(batch_label).view([batch_img.size(0), 10, 1, 1]).to(device)
+            real_img = batch_img.unsqueeze(1).float().to(device)
+            one_hot_label = torch.nn.functional.one_hot(batch_label).view([batch_img.size(0), 10, 1, 1]).float().to(device)
 
             real_label_img = torch.cat([real_img, torch.ones_like(real_img) * one_hot_label], dim=1).to(device)
             noise_label_img = torch.cat([noise[:batch_img.size(0)], one_hot_label], dim=1).to(device)
@@ -62,7 +62,7 @@ class CDCGAN:
         gen.eval()
         with torch.no_grad():
             label = torch.tensor([i // 10 for i in range(100)])
-            label = torch.nn.functional.one_hot(label).view([100, 10, 1, 1]).to(device)
+            label = torch.nn.functional.one_hot(label).view([100, 10, 1, 1]).float().to(device)
             noise_label = torch.cat([noise, label], dim=1)
             fake_img = gen(noise_label)
             plt.figure(figsize=(10, 10))
@@ -76,8 +76,8 @@ class CDCGAN:
             plt.close()
 
     def train(self):
-        train_data = torchvision.datasets.MNIST('../data', download=False, train=True)
-        test_data = torchvision.datasets.MNIST('../data', download=False, train=False)
+        train_data = torchvision.datasets.MNIST('/home/data/mnist', download=False, train=True)
+        test_data = torchvision.datasets.MNIST('/home/data/mnist', download=False, train=False)
 
         data = torch.cat([train_data.data, test_data.data]) / 127.5 - 1
         target = torch.cat([train_data.targets, test_data.targets])
@@ -89,10 +89,10 @@ class CDCGAN:
         dis = Discriminator().to(device)
 
         def d_loss_func(real, fake):
-            return torch.mean(torch.square(real - 1.0)) + torch.mean(torch.square(fake))
+            return torch.mean((real - 1.0).pow(2)) + torch.mean(fake.pow(2))
 
         def g_loss_func(fake):
-            return torch.mean(torch.square(fake - 1.0))
+            return torch.mean((fake - 1.0).pow(2))
 
         d_optim = torch.optim.Adam(dis.parameters(), lr=0.00005)
         g_optim = torch.optim.Adam(gen.parameters(), lr=0.00015)
